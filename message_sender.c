@@ -24,6 +24,7 @@ int main(int argc, char *argv[]) {
 	msg_len = strlen(msg);
 		
 	/* the flow */
+	printf("opening message slot device...");
 	if ((fd = open(file_path, O_WRONLY)) < 0) { /* open message slot device */
 		perror("failed to open file");
 		exit(1);

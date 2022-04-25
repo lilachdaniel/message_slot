@@ -235,6 +235,18 @@ static int __init msg_slots_init(void) {
 
 
 static void __exit msg_slots_cleanup(void){
+	chan_llist *curr, *tmp;
+	int i;
+	
+	for (i = 0; i < 257; i++) { /* go over all slots */
+		tmp = all_msg_slots[i]->channels;
+		while (tmp != NULL) { /* free all channels in slot */
+			curr = tmp;
+			tmp = tmp->next;
+			kfree(curr);
+		}
+	}
+	
 	unregister_chrdev(MAJOR_NUM, DEVICE_RANGE_NAME);
 }
 
