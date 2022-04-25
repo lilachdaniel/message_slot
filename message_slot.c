@@ -48,7 +48,8 @@ static int device_open(struct inode* inode, struct file* file) {
 	}
 	
 	if ((all_msg_slots[minor] = (msg_slot *)kmalloc(sizeof(msg_slot), GFP_KERNEL)) < 0) { /* open */
-  			return -1; /* return value */
+  			printk("failed to allocate memory for new msg slot\n");
+  			return -1;
   		}
   	all_msg_slots[minor]->channels = NULL;
   	
@@ -60,23 +61,20 @@ static long device_ioctl(struct file* file, unsigned int command, unsigned long 
 	chan_llist *new_channel, *first_channel;
 	msg_slot *slot;
 	/* check for invalid inputs */
-	if (file == NULL) { return -EINVAL; } /* invalid file */ /*???????????????????????????????????*/
+	if (file == NULL) { return -EINVAL; } /* invalid file */
 
-	if (file->f_inode == NULL) { return -EINVAL; } /* invalid inode */ /*???????????????????????????????????*/
+	if (file->f_inode == NULL) { return -EINVAL; } /* invalid inode */ 
 
-	if (command != MSG_SLOT_CHANNEL) {
-		return -EINVAL;
-	}
+	if (command != MSG_SLOT_CHANNEL) { return -EINVAL; }
 
-	if (parameter == 0) {
-		return -EINVAL;
-	}
+	if (parameter == 0) { return -EINVAL; }
 
-	
 	/* add channel */
 	slot = all_msg_slots[iminor(file->f_inode)];
+	
 	if (find_channel(slot, parameter) == NULL) { /* channel does not exist yet */
 		if ((new_channel = create_channel(parameter)) == NULL) { return -1; } /* failed to create channel */
+		
 		if ((first_channel = slot->channels) == NULL) { /* new_channel is the first channel in the message_slot */
 			slot->channels = new_channel;
 		}
@@ -112,15 +110,15 @@ static int device_release(struct inode* inode, struct file* file) {
 
 /* Reads the last message written on the channel into the user’s buffer. 
    Returns the number of bytes read, unless an error occurs */
-static ssize_t device_read(struct file* file, char __user* buffer, size_t length, loff_t* offset) { /* offset?????????????????? */
+static ssize_t device_read(struct file* file, char __user* buffer, size_t length, loff_t* offset) {
 	int i;
 	
 	unsigned long channel_id;
 	chan_llist* channel;
 	
-	if (file == NULL) { return -EINVAL; } /* invalid file */ /*???????????????????????????????????*/
+	if (file == NULL) { return -EINVAL; } /* invalid file */
 
-	if (file->f_inode == NULL) { return -EINVAL; } /* invalid inode */ /*???????????????????????????????????*/
+	if (file->f_inode == NULL) { return -EINVAL; } /* invalid inode */
 
 	if (file->private_data == NULL) { return -EINVAL; } /* no channel has been set on the file descriptor */
 	channel_id = (unsigned long) (file->private_data);
@@ -131,11 +129,8 @@ static ssize_t device_read(struct file* file, char __user* buffer, size_t length
 
 	if (length < channel->len) { return -ENOSPC; } /* buffer length provided is too small to hold the last message written on the channel */
 
-	/* other error cases?????????????????????????????????? */
-
-
 	for (i = 0; i < (channel->len); ++i) {
-		if (put_user(channel->chan_msg[i], &buffer[i]) != 0) { return -EFAULT; } /* check error value!!!!!!!!!!!!!!!!!!!!!!!!!!!!!*/
+		if (put_user(channel->chan_msg[i], &buffer[i]) != 0) { return -EFAULT; }
 	}
 	
 	return channel->len;
@@ -147,8 +142,8 @@ chan_llist *find_channel(msg_slot* slot, unsigned long channel_id) {
 
 	while (curr != NULL) {
 		/* check if curr is a channel with that id */
-
 		if (curr->chan_id == channel_id) { return curr; } 
+		
 		/* continue */
 		curr = curr->next;
 	}
@@ -159,15 +154,15 @@ chan_llist *find_channel(msg_slot* slot, unsigned long channel_id) {
 
 /* Writes a non-empty message of up to 128 bytes from the user’s buffer to the channel. 
    Returns the number of bytes written, unless an error occurs */
-static ssize_t device_write(struct file* file, const char __user* buffer, size_t length, loff_t* offset) { /* offset?????????????????? */
+static ssize_t device_write(struct file* file, const char __user* buffer, size_t length, loff_t* offset) {
 	int i;
 	
 	unsigned long channel_id;
 	chan_llist* channel;
 
-	if (file == NULL) { return -EINVAL; } /* invalid file */ /*???????????????????????????????????*/
+	if (file == NULL) { return -EINVAL; } /* invalid file */
 	
-	if (file->f_inode == NULL) { return -EINVAL; } /* invalid inode */ /*???????????????????????????????????*/
+	if (file->f_inode == NULL) { return -EINVAL; } /* invalid inode */
 	
 	if (file->private_data == NULL) { return -EINVAL; } /* no channel has been set on the file descriptor */
 	channel_id = (unsigned long) (file->private_data);
@@ -177,7 +172,7 @@ static ssize_t device_write(struct file* file, const char __user* buffer, size_t
 	if (length == 0 || length > MAX_BUFF_SIZE) { return -EMSGSIZE; } /* invalid length */
 	
 	for (i = 0; i < length; ++i) {
-		if (get_user(channel->chan_msg[i], &buffer[i]) != 0) { return -EFAULT; } /* check error value!!!!!!!!!!!!!!!!!!!!!!!!!!!!!*/
+		if (get_user(channel->chan_msg[i], &buffer[i]) != 0) { return -EFAULT; }
 	}
 	
 	/* update len */
@@ -202,7 +197,6 @@ struct file_operations Fops ={
 
 
 static int __init msg_slots_init(void) {
-	/*int i;*/
 	int rc = -1;
 	printk("in msg_slot_init\n");
 
@@ -213,15 +207,6 @@ static int __init msg_slots_init(void) {
     		printk(KERN_ALERT "%s registraion failed for  %d\n", DEVICE_RANGE_NAME, MAJOR_NUM);
     		return rc;
   	}
-
-  	/* initialize all_msg_slots */
-  	/*for (i = 0; i < 257; ++i) {
-  		if ((all_msg_slots[i] = (msg_slot *)kmalloc(sizeof(msg_slot), GFP_KERNEL)) < 0) {
-  			printk("failed to allocate memory at all_msg_slots_initialization");
-  			return -1;
-  		}
-  		all_msg_slots[i]->channels = NULL;
-  	}*/
   	printk( "Registeration is successful. ");
 	printk( "If you want to talk to the device driver,\n" );
 	printk( "you have to create a device file:\n" );
