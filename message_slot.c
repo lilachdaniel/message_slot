@@ -220,6 +220,26 @@ static int __init msg_slots_init(void) {
 
 
 static void __exit msg_slots_cleanup(void){
+	int i;
+	msg_slot *curr_slot;
+	chan_llist *curr, *tmp;
+	
+	/* free memory */
+	for (i = 0; i < 257; ++i) {
+		curr_slot = all_msg_slots[i];
+		/* free channels */
+		if (curr_slot != NULL) {
+			curr = curr_slot->channels;
+			while (curr != NULL) {
+				tmp = curr->next;
+				kfree(curr);
+				curr = tmp;
+			}
+			/* free slot */
+			kfree(curr_slot);
+		}
+	}
+			
 	unregister_chrdev(MAJOR_NUM, DEVICE_RANGE_NAME);
 }
 
